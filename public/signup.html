@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Food Donation Platform</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">FoodShare</a>
+        <div class="nav-links">
+            <a href="login.html">Login</a>
+        </div>
+    </nav>
+
+    <div class="auth-container" id="signupForm">
+        <h2>Sign Up</h2>
+        <form id="signupFormElement">
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label for="userType">I want to</label>
+                <select id="userType" name="userType" required>
+                    <option value="donor">Donate Food</option>
+                    <option value="recipient">Receive Food</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="organizationType">Organization Type</label>
+                <select id="organizationType" name="organizationType" required>
+                    <option value="individual">Individual</option>
+                    <option value="restaurant">Restaurant</option>
+                    <option value="food_bank">Food Bank</option>
+                    <option value="charity">Charity</option>
+                    <option value="supermarket">Supermarket</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <button type="submit" class="btn">Sign Up</button>
+            <div class="auth-switch">
+                Already have an account? <a href="login.html">Login</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('signupFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                userType: document.getElementById('userType').value,
+                organizationType: document.getElementById('organizationType').value
+            };
+
+            try {
+                const response = await fetch('http://localhost:3000/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store token and user info
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('userType', data.user.userType);
+                    localStorage.setItem('userId', data.user.id);
+                    
+                    // Show success message and redirect
+                    const successDiv = document.createElement('div');
+                    successDiv.className = 'success-message';
+                    successDiv.textContent = 'Successfully registered! Redirecting...';
+                    e.target.appendChild(successDiv);
+
+                    setTimeout(() => {
+                        window.location.href = data.user.userType === 'donor' 
+                            ? 'donor-dashboard.html' 
+                            : 'recipient-dashboard.html';
+                    }, 1500);
+                } else {
+                    throw new Error(data.error || 'Registration failed');
+                }
+            } catch (error) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = error.message;
+                e.target.appendChild(errorDiv);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Donation Platform</title>
+    <link rel="stylesheet" href="/css/style.css">
+        
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">FoodShare</a>
+        <div class="nav-links">
+            <a href="signup.html">Sign Up</a>
+        </div>
+    </nav>
+
+    <div class="auth-container" id="loginForm">
+        <h2>Login</h2>
+        <form id="loginFormElement">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn">Login</button>
+            <div class="auth-switch">
+                Don't have an account? <a href="signup.html">Sign Up</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('loginFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('http://localhost:3000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store token and user info
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('userType', data.user.userType);
+                    localStorage.setItem('userId', data.user.id);
+                    
+                    // Redirect based on user type
+                    if (data.user.userType === 'donor') {
+                        window.location.href = 'donor-dashboard.html';
+                    } else {
+                        window.location.href = 'recipient-dashboard.html';
+                    }
+                } else {
+                    throw new Error(data.error || 'Login failed');
+                }
+            } catch (error) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = error.message;
+                e.target.appendChild(errorDiv);
+            }
+        });
+    </script>
+</body>
+</html>

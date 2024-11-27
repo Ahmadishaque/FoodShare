@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Listing - FoodShare</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .edit-listing-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: var(--box-shadow);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .reservation-section {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #eee;
+        }
+
+        .reservation-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .reservation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .reservation-status {
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+        }
+
+        .status-pending {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .status-accepted {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-completed {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .reservation-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">FoodShare</a>
+        <div class="nav-links">
+            <a href="/donor-dashboard.html">Dashboard</a>
+            <button id="logoutBtn" class="btn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="edit-listing-container">
+        <h2>Edit Food Donation Listing</h2>
+        <form id="editListingForm">
+            <div class="form-group">
+                <label for="title">Title</label>
+                <input type="text" id="title" name="title" required>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" required></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="categoryId">Food Category</label>
+                    <select id="categoryId" name="categoryId" required>
+                        <!-- Categories will be populated dynamically -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="addressId">Pickup Location</label>
+                    <select id="addressId" name="addressId" required>
+                        <!-- Addresses will be populated dynamically -->
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="quantityKg">Quantity (kg)</label>
+                    <input type="number" id="quantityKg" name="quantityKg" step="0.1" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="feedsPeople">Feeds (number of people)</label>
+                    <input type="number" id="feedsPeople" name="feedsPeople" required>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="bestBefore">Best Before</label>
+                <input type="datetime-local" id="bestBefore" name="bestBefore" required>
+            </div>
+
+            <button type="submit" class="btn">Update Listing</button>
+        </form>
+
+        <div class="reservation-section">
+            <h3>Reservations</h3>
+            <div id="reservationsContainer">
+                <!-- Reservations will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+
+        // Get listing ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const listingId = urlParams.get('id');
+
+        if (!listingId) {
+            window.location.href = '/donor-dashboard.html';
+        }
+        
+        async function fetchListing() {
+            try {
+                const response = await fetch(`http://localhost:3000/api/listings/${listingId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) throw new Error('Failed to fetch listing');
+                
+                const listing = await response.json();
+                populateForm(listing);
+                if (listing.reservations) {
+                    displayReservations(listing.reservations);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to fetch listing details');
+                window.location.href = '/donor-dashboard.html';
+            }
+        }
+
+        function populateForm(listing) {
+            document.getElementById('title').value = listing.title;
+            document.getElementById('description').value = listing.description;
+            document.getElementById('categoryId').value = listing.category_id;
+            document.getElementById('addressId').value = listing.address_id;
+            document.getElementById('quantityKg').value = listing.quantity_kg;
+            document.getElementById('feedsPeople').value = listing.feeds_people;
+            document.getElementById('bestBefore').value = new Date(listing.best_before)
+                .toISOString().slice(0, 16);
+        }
+
+        function displayReservations(reservations) {
+            const container = document.getElementById('reservationsContainer');
+            
+            if (reservations.length === 0) {
+                container.innerHTML = '<p>No reservations yet</p>';
+                return;
+            }
+
+            container.innerHTML = reservations.map(reservation => `
+                <div class="reservation-card">
+                    <div class="reservation-header">
+                        <h4>Reservation #${reservation.reservation_id}</h4>
+                        <span class="reservation-status status-${reservation.status}">
+                            ${reservation.status}
+                        </span>
+                    </div>
+                    <div class="reservation-info">
+                        <p>Quantity: ${reservation.quantity_reserved} kg</p>
+                        <p>Pickup Time: ${new Date(reservation.pickup_time).toLocaleString()}</p>
+                    </div>
+                    ${reservation.status === 'pending' ? `
+                        <div class="reservation-actions">
+                            <button class="btn" onclick="updateReservation(${reservation.reservation_id}, 'accepted')">
+                                Accept
+                            </button>
+                            <button class="btn btn-secondary" onclick="updateReservation(${reservation.reservation_id}, 'declined')">
+                                Decline
+                            </button>
+                        </div>
+                    ` : ''}
+                    ${reservation.status === 'accepted' ? `
+                        <div class="reservation-actions">
+                            <button class="btn" onclick="updateReservation(${reservation.reservation_id}, 'completed')">
+                                Mark as Completed
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        async function updateReservation(reservationId, status) {
+            try {
+                const response = await fetch(`http://localhost:3000/api/listings/reservations/${reservationId}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ status })
+                });
+
+                if (!response.ok) throw new Error('Failed to update reservation');
+
+                // Refresh the listing data
+                fetchListing();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to update reservation');
+            }
+        }
+
+        document.getElementById('editListingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                categoryId: parseInt(document.getElementById('categoryId').value),
+                addressId: parseInt(document.getElementById('addressId').value),
+                quantityKg: parseFloat(document.getElementById('quantityKg').value),
+                feedsPeople: parseInt(document.getElementById('feedsPeople').value),
+                bestBefore: new Date(document.getElementById('bestBefore').value).toISOString()
+            };
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/listings/${listingId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (!response.ok) throw new Error('Failed to update listing');
+
+                alert('Listing updated successfully!');
+                window.location.href = '/donor-dashboard.html';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to update listing: ' + error.message);
+            }
+        });
+
+        // Fetch categories and addresses (reuse the functions from create-listing.html)
+        async function fetchCategories() {
+            try {
+                const response = await fetch('http://localhost:3000/api/listings/categories', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const categories = await response.json();
+                const select = document.getElementById('categoryId');
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.category_id;
+                    option.textContent = category.name;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+            }
+        }
+
+        async function fetchAddresses() {
+            try {
+                const response = await fetch('http://localhost:3000/api/listings/addresses', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const addresses = await response.json();
+                const select = document.getElementById('addressId');
+                addresses.forEach(address => {
+                    const option = document.createElement('option');
+                    option.value = address.address_id;
+                    option.textContent = `${address.street_address}, ${address.city}`;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error fetching addresses:', error);
+            }
+        }
+
+        // Initialize
+        fetchCategories();
+        fetchAddresses();
+        fetchListing();
+
+        // Quantity conversion helpers (same as create-listing.html)
+        document.getElementById('quantityKg').addEventListener('input', (e) => {
+            const kg = parseFloat(e.target.value) || 0;
+            document.getElementById('feedsPeople').value = Math.round(kg * 2);
+        });
+
+        document.getElementById('feedsPeople').addEventListener('input', (e) => {
+            const people = parseInt(e.target.value) || 0;
+            document.getElementById('quantityKg').value = (people / 2).toFixed(1);
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userType');
+            localStorage.removeItem('userId');
+            window.location.href = '/login.html';
+        });
+    </script>
+</body>
+</html>

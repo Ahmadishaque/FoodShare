@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recipient Dashboard - FoodShare</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: var(--box-shadow);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            color: var(--primary-color);
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .reservations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .reservation-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: var(--box-shadow);
+        }
+
+        .reservation-status {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-pending { background: #fff3e0; color: #ef6c00; }
+        .status-accepted { background: #e8f5e9; color: #2e7d32; }
+        .status-declined { background: #ffebee; color: #c62828; }
+        .status-completed { background: #e3f2fd; color: #1565c0; }
+
+        .search-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-bar input {
+            flex: 1;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: var(--box-shadow);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">FoodShare</a>
+        <div class="nav-links">
+            <a href="/browse-listings.html" class="btn">Browse Food</a>
+            <button id="logoutBtn" class="btn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h2>My Reservations</h2>
+            <a href="/browse-listings.html" class="btn">Find Food</a>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-value" id="activeReservations">0</div>
+                <div class="stat-label">Active Reservations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalReserved">0</div>
+                <div class="stat-label">Total KG Reserved</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="completedReservations">0</div>
+                <div class="stat-label">Completed Pickups</div>
+            </div>
+        </div>
+
+        <div id="reservationsContainer" class="reservations-grid">
+            <!-- Reservations will be populated here -->
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+
+        async function fetchReservations() {
+            try {
+                const response = await fetch('http://localhost:3000/api/listings/my-reservations', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) throw new Error('Failed to fetch reservations');
+
+                const reservations = await response.json();
+                displayReservations(reservations);
+                updateStats(reservations);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function updateStats(reservations) {
+            const stats = reservations.reduce((acc, res) => {
+                if (res.status === 'accepted' || res.status === 'pending') {
+                    acc.active++;
+                    acc.totalKg += res.quantity_reserved;
+                }
+                if (res.status === 'completed') {
+                    acc.completed++;
+                }
+                return acc;
+            }, { active: 0, totalKg: 0, completed: 0 });
+
+            document.getElementById('activeReservations').textContent = stats.active;
+            document.getElementById('totalReserved').textContent = stats.totalKg.toFixed(1);
+            document.getElementById('completedReservations').textContent = stats.completed;
+        }
+
+        function displayReservations(reservations) {
+            const container = document.getElementById('reservationsContainer');
+
+            if (reservations.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No reservations yet</h3>
+                        <p>Browse available food donations and make your first reservation.</p>
+                        <a href="browse-listings.html" class="btn">Browse Food</a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = reservations.map(reservation => `
+                <div class="reservation-card">
+                    <h3>${reservation.title}</h3>
+                    <span class="reservation-status status-${reservation.status}">
+                        ${reservation.status}
+                    </span>
+                    <div class="reservation-info">
+                        <p>Quantity: ${reservation.quantity_reserved} kg</p>
+                        <p>Donor: ${reservation.donor_name}</p>
+                        <p>Pickup Address: ${reservation.street_address}, ${reservation.city}</p>
+                        <p>Pickup Time: ${new Date(reservation.pickup_time).toLocaleString()}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userType');
+            localStorage.removeItem('userId');
+            window.location.href = '/login.html';
+        });
+
+        // Initial fetch
+        fetchReservations();
+    </script>
+</body>
+</html>

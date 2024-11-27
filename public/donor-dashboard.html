@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donor Dashboard - FoodShare</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .listings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .listing-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: var(--box-shadow);
+        }
+
+        .listing-card h3 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .listing-status {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-available {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-reserved {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .listing-info {
+            margin: 0.5rem 0;
+            color: #666;
+        }
+
+        .listing-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: var(--box-shadow);
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: var(--box-shadow);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            color: var(--primary-color);
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        #logoutBtn {
+            background: #f44336;
+        }
+
+        #logoutBtn:hover {
+            background: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">FoodShare</a>
+        <div class="nav-links">
+            <a href="create-listing.html" class="btn">Create Listing</a>
+            <button id="logoutBtn" class="btn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h2>My Donations</h2>
+            <a href="create-listing.html" class="btn">+ New Donation</a>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-value" id="totalDonations">0</div>
+                <div class="stat-label">Total Donations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="activeDonations">0</div>
+                <div class="stat-label">Active Listings</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalKg">0</div>
+                <div class="stat-label">Total KG Donated</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="peopleFed">0</div>
+                <div class="stat-label">People Fed</div>
+            </div>
+        </div>
+
+        <div id="listingsContainer" class="listings-grid">
+            <!-- Listings will be populated here -->
+        </div>
+    </div>
+
+    <script>
+        // Check authentication
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+
+        // Fetch and display listings
+        async function fetchListings() {
+            try {
+                const response = await fetch('http://localhost:3000/api/listings/my-listings', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch listings');
+                }
+
+                const listings = await response.json();
+                displayListings(listings);
+                updateStats(listings);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function updateStats(listings) {
+            const stats = listings.reduce((acc, listing) => {
+                acc.total++;
+                if (listing.status === 'available') acc.active++;
+                acc.totalKg += listing.quantity_kg;
+                acc.peopleFed += listing.feeds_people;
+                return acc;
+            }, { total: 0, active: 0, totalKg: 0, peopleFed: 0 });
+
+            document.getElementById('totalDonations').textContent = stats.total;
+            document.getElementById('activeDonations').textContent = stats.active;
+            document.getElementById('totalKg').textContent = stats.totalKg.toFixed(1);
+            document.getElementById('peopleFed').textContent = stats.peopleFed;
+        }
+
+        function displayListings(listings) {
+            const container = document.getElementById('listingsContainer');
+            
+            if (listings.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No donations yet</h3>
+                        <p>Create your first donation listing to help people in need.</p>
+                        <a href="create-listing.html" class="btn">Create Listing</a>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = listings.map(listing => `
+                <div class="listing-card">
+                    <h3>${listing.title}</h3>
+                    <span class="listing-status status-${listing.status}">${listing.status}</span>
+                    <div class="listing-info">
+                        <p>Quantity: ${listing.quantity_kg} kg</p>
+                        <p>Feeds: ${listing.feeds_people} people</p>
+                        <p>Expires: ${new Date(listing.best_before).toLocaleDateString()}</p>
+                    </div>
+                    <div class="listing-actions">
+                        <button class="btn btn-secondary" onclick="editListing('${listing.listing_id}')">Edit</button>
+                        <button class="btn btn-secondary" onclick="deleteListing('${listing.listing_id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function deleteListing(listingId) {
+            if (!confirm('Are you sure you want to delete this listing?')) return;
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/listings/${listingId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    fetchListings();
+                } else {
+                    throw new Error('Failed to delete listing');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to delete listing');
+            }
+        }
+
+        function editListing(listingId) {
+            window.location.href = `/edit-listing.html?id=${listingId}`;
+        }
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userType');
+            localStorage.removeItem('userId');
+            window.location.href = '/login.html';
+        });
+
+        // Initial fetch
+        fetchListings();
+    </script>
+</body>
+</html>
