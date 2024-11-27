@@ -1,4 +1,6 @@
-# Food Donation Platform // This app is still under development and many features will not work as expected. I am working on this and iteratively improve the functionality and user experiance.
+# Food Donation Platform 
+
+This app is still under development and many features will not work as expected. I am working on this and iteratively improve the functionality and user experiance.
 
 A platform that connects food donors (restaurants, individuals, etc.) with recipients (food banks, charities, etc.) to reduce food waste and help those in need.
 
